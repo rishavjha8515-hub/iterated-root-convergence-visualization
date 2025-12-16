@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Root Convergence: From Visual Discovery to Mathematical Proof</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        
+        .insight-box {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            border-left: 4px solid #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Icons
+        const Play = ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+        );
+        
+        const Pause = ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+        );
+        
+        const RotateCcw = ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+        );
+        
+        const Download = ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+        
+        const BarChart = ({ size = 20 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="20" x2="12" y2="10"></line>
+                <line x1="18" y1="20" x2="18" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="16"></line>
+            </svg>
+        );
+
+        const RootConvergenceVisualizer = () => {
+          const canvasRef = useRef(null);
+          const plotRef = useRef(null);
+          const [number, setNumber] = useState(127);
+          const [maxPower, setMaxPower] = useState(37);
+          const [isAnimating, setIsAnimating] = useState(false);
+          const [currentIteration, setCurrentIteration] = useState(0);
+          const [rotationAngle, setRotationAngle] = useState(0);
+          const [values, setValues] = useState([]);
+          const [showAnalysis, setShowAnalysis] = useState(true);
+          const animationRef = useRef(null);
+
+          const calculateIterations = (startNum, maxPow) => {
+            const results = [];
+            for (let power = 1; power <= maxPow; power++) {
+              const value = Math.pow(startNum, 1 / power);
+              const error = Math.abs(value - 1);
+              const theoretical = 1;
+              const relativeError = (error / theoretical) * 100;
+              
+              results.push({ 
+                power, 
+                value,
+                error,
+                theoretical,
+                relativeError,
+                logError: Math.log10(error + 1e-10)
+              });
+              
+              if (error < 0.0001) break;
+            }
+            return results;
+          };
+
+          useEffect(() => {
+            const iterations = calculateIterations(number, maxPower);
+            setValues(iterations);
+            setCurrentIteration(0);
+            setRotationAngle(0);
+          }, [number, maxPower]);
+
+          const convergenceMetrics = () => {
+            if (values.length === 0) return null;
+            
+            const convergedIndex = values.findIndex(v => v.error < 0.001);
+            const finalError = values[values.length - 1]?.error || 0;
+            
+            let k = 0;
+            if (values.length >= 3) {
+              const n1 = 1, n2 = values.length;
+              const e1 = Math.log(values[0].error + 1e-10);
+              const e2 = Math.log(values[values.length - 1].error + 1e-10);
+              k = -(e2 - e1) / (n2 - n1);
+            }
+            
+            return {
+              iterations: values.length,
+              convergedAt: convergedIndex !== -1 ? convergedIndex + 1 : 'Not yet',
+              finalError: finalError,
+              convergenceRate: k,
+              theoreticalRate: Math.log(number)
+            };
+          };
+
+          const metrics = convergenceMetrics();
+
+          const drawMainCanvas = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // ADAPTIVE ZOOM: Focuses on current iteration range
+            const maxValue = values[0]?.value || number;
+            const minValue = 1;
+            
+            // Calculate zoom based on progress
+            let displayMax;
+            if (currentIteration < values.length * 0.3) {
+              // Early iterations: show full range
+              displayMax = maxValue;
+            } else if (currentIteration < values.length * 0.7) {
+              // Mid iterations: start zooming
+              const progress = (currentIteration - values.length * 0.3) / (values.length * 0.4);
+              displayMax = maxValue - (maxValue - 3) * progress;
+            } else {
+              // Late iterations: zoom to convergence region (r = 0.5 to 1.5)
+              const progress = Math.min(1, (currentIteration - values.length * 0.7) / (values.length * 0.3));
+              displayMax = 3 - 1.5 * progress; // Zooms from 3 down to 1.5
+            }
+            
+            const scale = Math.min(width, height) * 0.45 / displayMax;
+            
+            // Draw all completed circles
+            for (let i = 0; i < currentIteration; i++) {
+              const { value } = values[i];
+              const radius = value * scale;
+              
+              // Fade older circles when zoomed
+              const fadeStart = Math.max(0, currentIteration - 15);
+              const alpha = i < fadeStart ? 0.15 : 0.3 + ((i - fadeStart) / 15) * 0.7;
+              
+              ctx.strokeStyle = `rgba(229, 229, 229, ${alpha})`;
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+            
+            // Highlight convergence target (r = 1) when zoomed
+            if (displayMax < 5) {
+              const targetRadius = 1 * scale;
+              ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+              ctx.lineWidth = 4;
+              ctx.setLineDash([8, 4]);
+              ctx.beginPath();
+              ctx.arc(centerX, centerY, targetRadius, 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              
+              // Label
+              ctx.fillStyle = '#10b981';
+              ctx.font = 'bold 16px monospace';
+              ctx.fillText('r = 1', centerX + targetRadius + 15, centerY);
+            }
+            
+            // Center point
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Current iteration
+            if (currentIteration < values.length) {
+              const { power, value } = values[currentIteration];
+              const targetRadius = value * scale;
+              
+              const lineX = centerX + targetRadius * Math.cos(rotationAngle);
+              const lineY = centerY + targetRadius * Math.sin(rotationAngle);
+              
+              // Rotating line
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.moveTo(centerX, centerY);
+              ctx.lineTo(lineX, lineY);
+              ctx.stroke();
+              
+              // Endpoint
+              ctx.fillStyle = '#60a5fa';
+              ctx.beginPath();
+              ctx.arc(lineX, lineY, 5, 0, Math.PI * 2);
+              ctx.fill();
+              
+              // Partial circle
+              if (rotationAngle > 0.1) {
+                ctx.strokeStyle = '#60a5fa';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, targetRadius, 0, rotationAngle);
+                ctx.stroke();
+              }
+              
+              // Info display
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 22px monospace';
+              ctx.fillText(`${currentIteration + 1}/${values.length}`, 20, 40);
+              
+              ctx.font = 'bold 20px monospace';
+              ctx.fillText(`n = ${power}`, 20, 75);
+              
+              ctx.font = '18px monospace';
+              ctx.fillStyle = '#cccccc';
+              ctx.fillText(`r = ${value.toFixed(6)}`, 20, 110);
+              ctx.fillText(`ε = ${values[currentIteration].error.toExponential(3)}`, 20, 145);
+              
+              // Zoom indicator
+              if (displayMax < 5) {
+                ctx.fillStyle = '#10b981';
+                ctx.font = 'bold 16px monospace';
+                ctx.fillText('🔍 ZOOMED', 20, 180);
+              }
+            }
+            
+            // Convergence message
+            if (currentIteration >= values.length) {
+              ctx.fillStyle = '#10b981';
+              ctx.font = 'bold 32px monospace';
+              ctx.fillText('CONVERGED', width / 2 - 120, height - 100);
+              
+              ctx.font = 'bold 24px monospace';
+              ctx.fillText('r → 1', width / 2 - 40, height - 60);
+              
+              ctx.font = '18px monospace';
+              ctx.fillStyle = '#cccccc';
+              ctx.fillText(
+                `ε = ${values[values.length - 1]?.error.toExponential(3)}`,
+                width / 2 - 70,
+                height - 30
+              );
+            }
+          };
+
+          const drawAnalysisPlot = () => {
+            const canvas = plotRef.current;
+            if (!canvas || values.length === 0) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 60;
+            const plotWidth = width - 2 * padding;
+            const plotHeight = height - 2 * padding;
+            
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+              const y = padding + (plotHeight * i) / 5;
+              ctx.beginPath();
+              ctx.moveTo(padding, y);
+              ctx.lineTo(width - padding, y);
+              ctx.stroke();
+            }
+            
+            // Axes
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding);
+            ctx.lineTo(width - padding, height - padding);
+            ctx.stroke();
+            
+            // Labels
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText('Convergence Analysis', width / 2 - 80, 30);
+            
+            ctx.save();
+            ctx.translate(20, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Error |r - 1|', -50, 0);
+            ctx.restore();
+            
+            ctx.fillText('Iteration (n)', width / 2 - 50, height - 20);
+            
+            // Plot error data
+            if (values.length > 1) {
+              const maxError = Math.max(...values.map(v => v.error));
+              const minError = Math.min(...values.map(v => v.error), 1e-10);
+              
+              const logMax = Math.log10(maxError);
+              const logMin = Math.log10(minError);
+              
+              ctx.strokeStyle = '#60a5fa';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              
+              values.forEach((v, i) => {
+                const x = padding + (i / (values.length - 1)) * plotWidth;
+                const logError = Math.log10(v.error + 1e-10);
+                const normalizedError = (logError - logMin) / (logMax - logMin);
+                const y = height - padding - normalizedError * plotHeight;
+                
+                if (i === 0) {
+                  ctx.moveTo(x, y);
+                } else {
+                  ctx.lineTo(x, y);
+                }
+                
+                ctx.fillStyle = '#60a5fa';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+              });
+              
+              ctx.stroke();
+              
+              // Theoretical fit
+              if (metrics && metrics.convergenceRate > 0) {
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                
+                for (let i = 0; i < values.length; i++) {
+                  const x = padding + (i / (values.length - 1)) * plotWidth;
+                  const theoreticalError = values[0].error * Math.exp(-metrics.convergenceRate * i);
+                  const logError = Math.log10(theoreticalError + 1e-10);
+                  const normalizedError = (logError - logMin) / (logMax - logMin);
+                  const y = height - padding - normalizedError * plotHeight;
+                  
+                  if (i === 0) {
+                    ctx.moveTo(x, y);
+                  } else {
+                    ctx.lineTo(x, y);
+                  }
+                }
+                
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              
+              // Legend
+              ctx.fillStyle = '#60a5fa';
+              ctx.fillRect(width - 180, 50, 20, 3);
+              ctx.fillStyle = '#ffffff';
+              ctx.font = '12px monospace';
+              ctx.fillText('Numerical', width - 155, 55);
+              
+              ctx.fillStyle = '#f59e0b';
+              ctx.fillRect(width - 180, 70, 20, 3);
+              ctx.fillStyle = '#ffffff';
+              ctx.fillText('Theoretical', width - 155, 75);
+              
+              // Y-axis labels
+              ctx.fillStyle = '#cccccc';
+              ctx.font = '11px monospace';
+              for (let i = 0; i <= 5; i++) {
+                const logError = logMin + (logMax - logMin) * (i / 5);
+                const error = Math.pow(10, logError);
+                const y = height - padding - (i / 5) * plotHeight;
+                ctx.fillText(error.toExponential(1), 10, y + 5);
+              }
+              
+              // X-axis labels
+              const labelCount = Math.min(6, values.length);
+              for (let i = 0; i < labelCount; i++) {
+                const n = Math.floor((i / (labelCount - 1)) * (values.length - 1));
+                const x = padding + (i / (labelCount - 1)) * plotWidth;
+                ctx.fillText(n.toString(), x - 10, height - padding + 20);
+              }
+            }
+          };
+
+          useEffect(() => {
+            drawMainCanvas();
+          }, [values, currentIteration, rotationAngle]);
+
+          useEffect(() => {
+            if (showAnalysis) {
+              drawAnalysisPlot();
+            }
+          }, [values, showAnalysis]);
+
+          const animate = () => {
+            if (currentIteration < values.length) {
+              setRotationAngle(prev => {
+                const newAngle = prev + 0.08;
+                
+                if (newAngle >= Math.PI * 2) {
+                  setCurrentIteration(curr => curr + 1);
+                  return 0;
+                }
+                
+                return newAngle;
+              });
+              
+              animationRef.current = requestAnimationFrame(animate);
+            } else {
+              setIsAnimating(false);
+            }
+          };
+
+          useEffect(() => {
+            if (isAnimating) {
+              animationRef.current = requestAnimationFrame(animate);
+            } else {
+              if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+              }
+            }
+            
+            return () => {
+              if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+              }
+            };
+          }, [isAnimating, currentIteration, rotationAngle, values.length]);
+
+          const handlePlayPause = () => {
+            setIsAnimating(!isAnimating);
+          };
+
+          const handleReset = () => {
+            setIsAnimating(false);
+            setCurrentIteration(0);
+            setRotationAngle(0);
+            if (animationRef.current) {
+              cancelAnimationFrame(animationRef.current);
+            }
+          };
+
+          const handleDownloadImage = () => {
+            const canvas = canvasRef.current;
+            const link = document.createElement('a');
+            link.download = `root_convergence_${number}_n${maxPower}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+          };
+
+          const handleDownloadData = () => {
+            let csv = 'n,power,root_value,error,theoretical,relative_error_percent\n';
+            values.forEach(v => {
+              csv += `${v.power},${v.power},${v.value},${v.error},${v.theoretical},${v.relativeError}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `root_convergence_data_${number}_n${maxPower}.csv`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+          };
+
+          return (
+            <div className="w-full max-w-6xl mx-auto p-6 bg-black rounded-xl shadow-2xl">
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  Root Convergence: From Calculator Play to Mathematical Proof
+                </h2>
+                <p className="text-gray-400">
+                  Interactive visualization with auto-zoom convergence tracking
+                </p>
+              </div>
+
+              <div className="insight-box mb-6 p-4 rounded-lg">
+                <h3 className="text-white font-bold mb-2">💡 Discovery at 2 AM</h3>
+                <p className="text-blue-100 text-sm leading-relaxed">
+                  <strong>Origin:</strong> Playing with calculator's nth root function revealed 
+                  converging patterns. Hand-plotted graphs showed all sequences approach r = 1.
+                  <br/><br/>
+                  <strong>This tool:</strong> Automatically zooms into convergence region as circles 
+                  overlap, making the mathematical limit visually clear. Watch as early iterations 
+                  show the full range, then the view zooms to focus on r ≈ 1.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    Starting Number (N): {number}
+                  </label>
+                  <input
+                    type="range"
+                    min="2"
+                    max="200"
+                    value={number}
+                    onChange={(e) => setNumber(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    disabled={isAnimating}
+                  />
+                  <input
+                    type="number"
+                    value={number}
+                    onChange={(e) => setNumber(Math.max(2, Number(e.target.value)))}
+                    className="mt-2 w-full px-4 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg"
+                    disabled={isAnimating}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    Maximum Power (1/n): n = {maxPower}
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    value={maxPower}
+                    onChange={(e) => setMaxPower(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    disabled={isAnimating}
+                  />
+                  <select
+                    value={maxPower}
+                    onChange={(e) => setMaxPower(Number(e.target.value))}
+                    className="mt-2 w-full px-4 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg"
+                    disabled={isAnimating}
+                  >
+                    {[10, 20, 30, 37, 40, 50].map(n => (
+                      <option key={n} value={n}>Up to n = {n}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-black rounded-lg p-4 mb-6 border-2 border-gray-800">
+                <canvas
+                  ref={canvasRef}
+                  width={900}
+                  height={900}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex gap-3 mb-6 flex-wrap">
+                <button
+                  onClick={handlePlayPause}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition font-semibold"
+                >
+                  {isAnimating ? <Pause size={20} /> : <Play size={20} />}
+                  {isAnimating ? 'Pause' : 'Play'}
+                </button>
+                
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition font-semibold"
+                >
+                  <RotateCcw size={20} />
+                  Reset
+                </button>
+
+                <button
+                  onClick={() => setShowAnalysis(!showAnalysis)}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+                >
+                  <BarChart size={20} />
+                  {showAnalysis ? 'Hide' : 'Show'} Analysis
+                </button>
+
+                <button
+                  onClick={handleDownloadImage}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition font-semibold"
+                >
+                  <Download size={20} />
+                  Save Image
+                </button>
+
+                <button
+                  onClick={handleDownloadData}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition font-semibold"
+                >
+                  <Download size={20} />
+                  Export CSV
+                </button>
+              </div>
+
+              {showAnalysis && (
+                <div className="bg-black rounded-lg p-4 mb-6 border-2 border-blue-800">
+                  <canvas
+                    ref={plotRef}
+                    width={900}
+                    height={400}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-900 rounded-lg p-4 border-2 border-gray-800 mb-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">
+                    {metrics?.iterations || 0}
+                  </div>
+                  <div className="text-sm text-gray-400">Total Iterations</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">
+                    {currentIteration < values.length ? `n=${values[currentIteration]?.power}` : 'Done'}
+                  </div>
+                  <div className="text-sm text-gray-400">Current Power</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">
+                    {values[currentIteration]?.value.toFixed(6) || '1.000000'}
+                  </div>
+                  <div className="text-sm text-gray-400">Current Radius</div>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">
+                    {metrics?.finalError.toExponential(2) || '0'}
+                  </div>
+                  <div className="text-sm text-gray-400">Final Error</div>
+                </div>
+              </div>
+
+              {metrics && (
+                <div className="bg-gray-900 rounded-lg p-4 border-2 border-green-800 mb-6">
+                  <h3 className="font-semibold text-green-400 mb-3 text-lg">✓ Validation & Convergence Analysis</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Converged at iteration:</span>
+                      <span className="text-white font-mono ml-2">{metrics.convergedAt}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Final error |r - 1|:</span>
+                      <span className="text-white font-mono ml-2">{metrics.finalError.toExponential(4)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Convergence rate (numerical):</span>
+                      <span className="text-white font-mono ml-2">{metrics.convergenceRate.toFixed(4)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Theoretical rate ln(N):</span>
+                      <span className="text-white font-mono ml-2">{metrics.theoreticalRate.toFixed(4)}</span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <span className="text-gray-400">Agreement:</span>
+                      <span className="text-green-400 font-mono ml-2">
+                        {((1 - Math.abs(metrics.convergenceRate - metrics.theoreticalRate) / metrics.theoreticalRate) * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
+                <h3 className="font-semibold text-white mb-3">Mathematical Foundation:</h3>
+                
+                <div className="space-y-3 text-sm text-gray-400 leading-relaxed">
+                  <div>
+                    <strong className="text-white">Theorem:</strong> For any N &gt; 1,
+                    <div className="font-mono text-blue-400 my-2 ml-4">
+                      lim(n→∞) N^(1/n) = 1
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <strong className="text-white">Auto-Zoom Feature:</strong> As iteration progresses, 
+                    the visualization automatically zooms into the convergence region. This makes theoverlapping circles near r = 1 clearly visible, illustrating the limit geometrically.
+              </div>
+              
+              <div>
+                <strong className="text-white">Discovery Process:</strong> Calculator exploration → 
+                Hand-plotted convergence → Mathematical validation → Interactive tool with auto-zoom 
+                to highlight the convergence phenomenon.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg border-2 border-purple-600">
+            <h3 className="font-semibold text-white mb-2">📄 Research Note</h3>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              This visualization demonstrates convergence through progressive zoom, 
+              making abstract limits concrete. The auto-zoom feature emerged from 
+              the need to see overlapping circles clearly—turning a visualization 
+              challenge into a pedagogical advantage.
+            </p>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<RootConvergenceVisualizer />);
+</script>
+</body>
+</html>
+```
