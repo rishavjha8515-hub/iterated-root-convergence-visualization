@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Root Convergence: From Visual Discovery to Mathematical Proof</title>
+    <title>Interactive Visualization: Numerical Behavior of Iterated Roots</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -147,7 +147,7 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, width, height);
             
-            // ADAPTIVE ZOOM: Focuses on current iteration range
+            // ADAPTIVE SCALING: Focuses on current iteration range
             const maxValue = values[0]?.value || number;
             const minValue = 1;
             
@@ -163,7 +163,7 @@
             } else {
               // Late iterations: zoom to convergence region (r = 0.5 to 1.5)
               const progress = Math.min(1, (currentIteration - values.length * 0.7) / (values.length * 0.3));
-              displayMax = 3 - 1.5 * progress; // Zooms from 3 down to 1.5
+              displayMax = 3 - 1.5 * progress;
             }
             
             const scale = Math.min(width, height) * 0.45 / displayMax;
@@ -255,7 +255,7 @@
               if (displayMax < 5) {
                 ctx.fillStyle = '#10b981';
                 ctx.font = 'bold 16px monospace';
-                ctx.fillText('🔍 ZOOMED', 20, 180);
+                ctx.fillText('🔍 SCALED', 20, 180);
               }
             }
             
@@ -500,22 +500,21 @@
             <div className="w-full max-w-6xl mx-auto p-6 bg-black rounded-xl shadow-2xl">
               <div className="mb-6">
                 <h2 className="text-3xl font-bold text-white mb-2">
-                  Root Convergence: From Calculator Play to Mathematical Proof
+                  Numerical Behavior of Iterated Roots: Interactive Visualization
                 </h2>
                 <p className="text-gray-400">
-                  Interactive visualization with auto-zoom convergence tracking
+                  Adaptive scaling visualization for N^(1/n) convergence
                 </p>
               </div>
 
               <div className="insight-box mb-6 p-4 rounded-lg">
-                <h3 className="text-white font-bold mb-2">💡 Discovery at 2 AM</h3>
+                <h3 className="text-white font-bold mb-2">Adaptive Scaling Visualization</h3>
                 <p className="text-blue-100 text-sm leading-relaxed">
-                  <strong>Origin:</strong> Playing with calculator's nth root function revealed 
-                  converging patterns. Hand-plotted graphs showed all sequences approach r = 1.
-                  <br/><br/>
-                  <strong>This tool:</strong> Automatically zooms into convergence region as circles 
-                  overlap, making the mathematical limit visually clear. Watch as early iterations 
-                  show the full range, then the view zooms to focus on r ≈ 1.
+                  This visualization represents successive roots N^(1/n) as concentric circles. 
+                  As iterations progress, adaptive scaling automatically zooms into the 
+                  convergence region near r = 1, revealing continued convergence beyond typical 
+                  display precision thresholds. The visualization demonstrates the distinction 
+                  between mathematical limits and finite-precision computational artifacts.
                 </p>
               </div>
 
@@ -662,7 +661,7 @@
 
               {metrics && (
                 <div className="bg-gray-900 rounded-lg p-4 border-2 border-green-800 mb-6">
-                  <h3 className="font-semibold text-green-400 mb-3 text-lg">✓ Validation & Convergence Analysis</h3>
+                  <h3 className="font-semibold text-green-400 mb-3 text-lg">Convergence Analysis</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Converged at iteration:</span>
@@ -691,7 +690,7 @@
               )}
 
               <div className="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-800">
-                <h3 className="font-semibold text-white mb-3">Mathematical Foundation:</h3>
+                <h3 className="font-semibold text-white mb-3">Mathematical Foundation</h3>
                 
                 <div className="space-y-3 text-sm text-gray-400 leading-relaxed">
                   <div>
@@ -702,34 +701,34 @@
                   </div>
                   
                   <div>
-                    <strong className="text-white">Auto-Zoom Feature:</strong> As iteration progresses, 
-                    the visualization automatically zooms into the convergence region. This makes theoverlapping circles near r = 1 clearly visible, illustrating the limit geometrically.
+                    <strong className="text-white">Adaptive Scaling:</strong> As iteration progresses, 
+                    the visualization automatically zooms into the convergence region, making 
+                    overlapping circles near r = 1 clearly visible and illustrating the limit geometrically.
+                  </div>
+                  
+                  <div>
+                    <strong className="text-white">Implementation:</strong> Geometric representation 
+                    with adaptive scaling procedure highlights the algebraic 1/n decay rate that 
+                    remains invisible in standard numerical displays.
+                  </div>
+                </div>
               </div>
-              
-              <div>
-                <strong className="text-white">Discovery Process:</strong> Calculator exploration → 
-                Hand-plotted convergence → Mathematical validation → Interactive tool with auto-zoom 
-                to highlight the convergence phenomenon.
+
+              <div className="mt-6 p-4 bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg border-2 border-purple-600">
+                <h3 className="font-semibold text-white mb-2">Visualization Framework</h3>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  This visualization demonstrates convergence through adaptive scaling, 
+                  making the slow 1/n decay visually apparent. The scaling procedure 
+                  preserves distinguishability near r = 1, revealing continued convergence 
+                  that would otherwise appear as numerical stabilization.
+                </p>
               </div>
             </div>
-          </div>
+          );
+        };
 
-          <div className="mt-6 p-4 bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg border-2 border-purple-600">
-            <h3 className="font-semibold text-white mb-2">📄 Research Note</h3>
-            <p className="text-sm text-gray-300 leading-relaxed">
-              This visualization demonstrates convergence through progressive zoom, 
-              making abstract limits concrete. The auto-zoom feature emerged from 
-              the need to see overlapping circles clearly—turning a visualization 
-              challenge into a pedagogical advantage.
-            </p>
-          </div>
-        </div>
-      );
-    };
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<RootConvergenceVisualizer />);
-</script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<RootConvergenceVisualizer />);
+    </script>
 </body>
 </html>
-```
