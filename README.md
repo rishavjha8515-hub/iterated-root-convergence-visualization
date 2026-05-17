@@ -103,7 +103,14 @@ iterated-root-convergence-visualization/
 ```
 
 ---
+## Prime Saturation Paper
 
+This repository also contains the reproducibility materials for:
+"Prime Numbers Are Locally Logarithmically Minimal: A Device-Independent 
+Saturation Phenomenon in Repeated Square Root Iteration"
+
+Run: python saturation_analysis.py
+Requires: matplotlib, numpy
 ## Paper
 
 *Visualizing Floating-Point Artifacts in Slowly Converging Sequences: A Geometric Approach*
